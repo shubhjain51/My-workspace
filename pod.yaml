@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-app-pod
+  labels:
+    app: demo-app
+    tier: backend
+spec:
+  serviceAccountName: demo-service-account
+  containers:
+    - name: demo-container
+      image: nginx
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 80
+      env:
+        - name: ENV
+          value: "production"
+        - name: APP_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: mode
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "250m"
+        limits:
+          memory: "256Mi"
+          cpu: "500m"
+      livenessProbe:
+        httpGet:
+          path: /
+          port: 80
+        initialDelaySeconds: 10
+        periodSeconds: 5
+      readinessProbe:
+        httpGet:
+          path: /
+          port: 80
+        initialDelaySeconds: 5
+        periodSeconds: 5
+      volumeMounts:
+        - name: app-volume
+          mountPath: /usr/share/nginx/html
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        allowPrivilegeEscalation: false
+
+  volumes:
+    - name: app-volume
+      emptyDir: {}
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                  - linux
+
+  tolerations:
+    - key: "workload"
+      operator: "Equal"
+      value: "dev"
+      effect: "NoSchedule"
+
+  restartPolicy: Always
