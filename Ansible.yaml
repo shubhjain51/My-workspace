@@ -1,0 +1,124 @@
+2 -  ANSIBLE
+
+## Ansible Directory Layout
+
+inventories/
+   production/
+      hosts               # inventory file for production servers
+      group_vars/
+         group1.yml       # here we assign variables to particular groups
+         group2.yml
+      host_vars/
+         hostname1.yml    # here we assign variables to particular systems
+         hostname2.yml
+
+   staging/
+      hosts               # inventory file for staging environment
+      group_vars/
+         group1.yml       # here we assign variables to particular groups
+         group2.yml
+      host_vars/
+         stagehost1.yml   # here we assign variables to particular systems
+         stagehost2.yml
+
+library/
+module_utils/
+filter_plugins/
+
+roles/
+    common/               # this hierarchy represents a "role"
+        tasks/            #
+            main.yml      #  <-- tasks file can include smaller files if warranted
+        handlers/         #
+            main.yml      #  <-- handlers file
+        templates/        #  <-- files for use with the template resource
+            ntp.conf.j2   #  <------- templates end in .j2
+        files/            #
+            bar.txt       #  <-- files for use with the copy resource
+            foo.sh        #  <-- script files for use with the script resource
+        vars/             #
+            main.yml      #  <-- variables associated with this role
+        defaults/         #
+            main.yml      #  <-- default lower priority variables for this role
+        meta/             #
+            main.yml      #  <-- role dependencies and optional Galaxy info
+        library/          # roles can also include custom modules
+        module_utils/     # roles can also include custom module_utils
+        lookup_plugins/   # or other types of plugins, like lookup in this case
+
+    webtier/              # same kind of structure as "common" was above, done for the webtier role
+    monitoring/           # ""
+    fooapp/               # ""
+
+ansible_playbook.yaml
+
+
+ansible-playbook -i production ansible_playbook.yaml ## Command to run Playbook is
+
+# Various file for the ansible
+
+                              # Host.yaml or host file #
+
+#basic structure
+10.3.4.2
+[webservers]
+10.1.1.3.4
+[dbservers]
+10.2.3.4
+
+# In YAML Format
+ungrouped:
+  hosts:
+    10.3.4.2
+webservers:
+  hosts:
+    10.1.1.3.4
+    foo.example.com
+dbservers:
+  hosts:
+    10.2.3.4
+    
+
+                              # Group vars #
+
+---
+# file: group_vars/webservers
+apacheMaxRequestsPerChild: 3000
+apacheMaxClients: 900
+
+
+                            ## file: roles/common/tasks/main.yml#
+
+- name: Make sure Apache is installed
+  apt:
+    name: apache2
+    state: latest
+    update_cache: yes
+- name: Make sure Apache service is started and enabled at root
+  service:
+    name: apache2
+    state: started
+    enabled: yes
+- name: Make sure index.html file is present in /var/www/html
+  copy:
+    src: /home/ansible/.ansible/files/index.html
+    dest: /var/www/html/index.html
+  notify:                  ## Handled by handlers
+  - Restart Apache   
+
+                           ## Handlers ##
+
+- name: Restart Apache
+  service:
+    name: apache2
+    state: restarted
+
+                          # Playbook.yaml file ##
+
+- hosts: webservers # or all
+  roles:
+    - common
+    - apache2  # other role name
+
+ansible-playbook ansible_playbook.yaml --limit webservers  # This will deploy the roles only to webservers ips.
+
