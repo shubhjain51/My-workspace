@@ -1,0 +1,187 @@
+5- Pipelines
+
+                            ## GitHub Action pipeline with all required Parameters ##
+
+
+name: CI/CD Pipeline  # Name of the GitHub Actions workflow
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+  workflow_dispatch:  # Allows manual trigger
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+env:
+  AZURE_WEBAPP_NAME: MY_WEBAPP_NAME   # set this to your application's name
+  AZURE_WEBAPP_PACKAGE_PATH: '.'      # set this to the path to your web app project, defaults to the repository root
+  NODE_VERSION: '14.x'                # set this to the node version to use
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [14, 16, 18]  # Runs on multiple Node.js versions
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4  # Clones the repository
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}  # Uses matrix version
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Archive Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-output
+          path: build/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://example.com
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:                                 # with command used to tell Github action pipeline to build the articat and named as build-output and store the build articat at the location path build/
+          name: build-output      
+          path: build/    
+
+      - name: Deploy to Server
+        run: |
+          echo "Deploying application..."
+          scp -r build/* user@server:/var/www/html/
+
+      - name: Notify Deployment
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_MESSAGE: "Deployment to production successful!"
+
+
+
+
+
+
+                                  ## workflow action written by me  for Node JS application  ##
+
+
+
+name: Github action pipeline
+
+on:
+  push: 
+    branches:
+      - subhanshu
+      - shubh
+  pull_request:
+    branches:
+      - subhanshu 
+      - main
+  workflow_action:
+    inputs:
+      environment: 
+        required_parameters: true
+        default: 'dev'
+        description: "Environments to deploy"
+        type: choice
+        options: 
+          - dev
+          - staging
+          - production
+
+env:
+  AZURE_WEBAPP_NAME: MY_WEBAPP_NAME   # set this to your application's name
+  AZURE_WEBAPP_PACKAGE_PATH: '.'      # set this to the path to your web app project, defaults to the repository root
+  NODE_VERSION: '14.x'                # set this to the node version to use
+  GITHUB_ENV_URL: ''
+
+
+jobs:
+  build: 
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set Deployment URL Based on Environment
+        id: set-url
+        run: |
+          if [ "${{ github.event.inputs.env_name }}" == "dev" ]; then
+            echo "DEPLOY_URL=https://dev.example.com" >> $GITHUB_ENV_URL
+          elif [ "${{ github.event.inputs.env_name }}" == "staging" ]; then
+            echo "DEPLOY_URL=https://staging.example.com" >> $GITHUB_ENV_URL
+          elif [ "${{ github.event.inputs.env_name }}" == "prod" ]; then
+            echo "DEPLOY_URL=https://prod.example.com" >> $GITHUB_ENV_URL
+          fi
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.Js
+        uses: action/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Set up Dependencies( build test and run)
+        run: |
+          npn install
+          npm test
+          npm run build
+      
+      - name: Upload artifacts for deployment Job
+        uses: actions/upload-artifacts@v4
+        with:
+          name: build-output
+          path: build/
+      
+  
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: 
+      name: {{ github.event.inputs.environment }}
+      url: {{ steps.deploy-to-webapp.outputs.webapp-url}}
+
+    steps:
+      - name: Download the artifacts
+        uses: download-artifacts@v4
+        with: 
+          name: build-output
+          path: build/
+      
+      - name: 'Deploy to Azure WebApp'
+        id: deploy-to-webapp                                     ## this id is referenced in line 706, used for referencing.
+        uses: azure/webapps-deploy@85270a1854658d167ab239bce43949edb336fa7c
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
