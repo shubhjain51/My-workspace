@@ -1,1 +1,57 @@
 flask
+from dataclasses import dataclass
+from enum import Enum
+
+# These classes are provided in the problem statement
+class AccessLevels(Enum):
+    USER = 0  # Can read
+    ADMIN = 1 # Can read and write
+    GUEST = 2 # Can neither read nor write
+
+@dataclass
+class User:
+    id: str
+    access: AccessLevels
+
+# Error string template for copy/paste
+# "Access denied for: {user.access.name}"
+
+class AccessDeniedError(Exception):
+    # This class is provided in the problem statement
+    pass
+
+def authorize(access_set: set[AccessLevels]):
+    """
+    Decorator that handles the authorization.
+    It takes a set of AccessLevels as enum values.
+    """
+    def decorator(func):
+        def wrapper(self, *args, **kwargs):
+            # The user object is passed as the 'user' keyword argument
+            # or the last positional argument in the sample cases.
+            # We assume it's passed as a keyword argument for clarity.
+            # For this problem, the user object is the last argument.
+            user = args[-1]
+            if user.access not in access_set:
+                raise AccessDeniedError(f"Access denied for: {user.access.name}")
+            return func(self, *args, **kwargs)
+        return wrapper
+    return decorator
+
+class DatabaseController(object):
+    def __init__(self, data: dict):
+        self.data = data
+
+    @authorize(access_set={AccessLevels.ADMIN, AccessLevels.USER})
+    def get_data(self, key: str, user: User) -> str:
+        if key in self.data:
+            return f"Success: {self.data[key]}"
+        else:
+            return f"Return: 'Key not found!'"
+
+    @authorize(access_set={AccessLevels.ADMIN})
+    def set_data(self, key: str, val: str, user: User) -> str:
+        self.data[key] = val
+        return f"Success: {self.data[key]} saved"
+
+
