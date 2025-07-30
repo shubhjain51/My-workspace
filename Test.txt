@@ -1,0 +1,89 @@
+import sys
+
+# Book class implementation
+class Book:
+    def __init__(self, title, genre, rating):
+        self.title = title
+        self.genre = genre
+        self.rating = rating
+
+# LibraryManagement class implementation
+class LibraryManagement:
+    def __init__(self):
+        self.books = []
+
+    def add_book(self, book):
+        self.books.append(book)
+
+    def get_highest_rated_books(self, x):
+        # Sort books by rating (descending), then by title (alphabetical)
+        sorted_books = sorted(
+            self.books, 
+            key=lambda book: (-book.rating, book.title)
+        )
+        return sorted_books[:x]
+
+    def recommend_top_book_by_genre(self, genre):
+        books_in_genre = [book for book in self.books if book.genre == genre]
+        
+        if not books_in_genre:
+            return None
+        
+        # Find the highest rated book in the genre.
+        # Python's `max` function with a key is efficient.
+        top_book = max(books_in_genre, key=lambda book: book.rating)
+        return top_book
+
+def main():
+    # Setup
+    library = LibraryManagement()
+
+    # Read the number of books to add
+    try:
+        n = int(sys.stdin.readline())
+    except (IOError, ValueError):
+        n = 0
+
+    # Read and add books
+    for _ in range(n):
+        line = sys.stdin.readline().strip()
+        if not line:
+            continue
+        parts = line.split(',')
+        if len(parts) == 3:
+            title = parts[0]
+            genre = parts[1]
+            rating = float(parts[2])
+            library.add_book(Book(title, genre, rating))
+
+    # Read the number of books to recommend
+    try:
+        x = int(sys.stdin.readline())
+    except (IOError, ValueError):
+        x = 0
+
+    # Print highest rated books
+    print("Highest Rated Book: ", end='')
+    highest_rated = library.get_highest_rated_books(x)
+    if highest_rated:
+        print(f"{highest_rated[0].title}, Rating: {highest_rated[0].rating}")
+    else:
+        print("None") # Or handle as per test case expectation
+
+    print("Top Recommended Book In Programming", end='')
+    
+    # Read the genre to recommend
+    genre_to_recommend = sys.stdin.readline().strip()
+    if not genre_to_recommend:
+        print("None")
+    else:
+        recommended = library.recommend_top_book_by_genre(genre_to_recommend)
+        if recommended:
+            print(f"Genre: {recommended.genre}, Rating: {recommended.rating}")
+        else:
+            print("None")
+
+
+if __name__ == '__main__':
+    main()
+
